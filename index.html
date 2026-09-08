@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>بازارنما — طلا و دلار</title>
+<meta name="theme-color" content="#14161A">
+<link rel="manifest" href="manifest.json">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;900&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#14161A;
+    --panel:#1C1F24;
+    --panel-2:#20242A;
+    --hair:#2C3038;
+    --brass:#C9A227;
+    --brass-dim:#8A7220;
+    --jade:#2F8C77;
+    --jade-dim:#1E5A4C;
+    --ink:#EDEAE1;
+    --muted:#8B8F94;
+    --up:#4CAF7D;
+    --down:#D9695F;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);}
+  body{
+    font-family:'Vazirmatn',sans-serif;
+    min-height:100vh;
+    min-height:100dvh;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
+  }
+  .wrap{width:100%;max-width:480px;padding:18px 16px 40px;}
+
+  /* header */
+  header{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:8px 2px 22px;
+  }
+  .brand{display:flex;flex-direction:column;gap:2px;}
+  .brand .name{font-size:20px;font-weight:900;letter-spacing:.3px;}
+  .brand .clock{font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums;}
+  .refresh-ring{
+    position:relative;width:46px;height:46px;flex-shrink:0;cursor:pointer;
+  }
+  .refresh-ring svg{width:100%;height:100%;transform:rotate(-90deg);}
+  .refresh-ring circle{fill:none;stroke-width:3;}
+  .refresh-ring .track{stroke:var(--hair);}
+  .refresh-ring .bar{stroke:var(--brass);stroke-linecap:round;transition:stroke-dashoffset 1s linear;}
+  .refresh-ring .icon{
+    position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    font-size:15px;color:var(--ink);
+  }
+  .refresh-ring.spinning .icon{animation:spin .7s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+
+  /* status line */
+  .status{
+    font-size:12.5px;color:var(--muted);
+    display:flex;align-items:center;gap:6px;
+    padding:0 2px 16px;
+  }
+  .status .dot{width:6px;height:6px;border-radius:50%;background:var(--muted);}
+  .status.ok .dot{background:var(--up);}
+  .status.err .dot{background:var(--down);}
+
+  /* toggle */
+  .unit-toggle{
+    display:flex;background:var(--panel);border:1px solid var(--hair);
+    border-radius:10px;padding:3px;margin:0 2px 18px;width:fit-content;
+    font-size:12.5px;
+  }
+  .unit-toggle button{
+    border:none;background:transparent;color:var(--muted);
+    padding:6px 14px;border-radius:8px;font-family:inherit;font-size:inherit;
+    cursor:pointer;
+  }
+  .unit-toggle button.active{background:var(--panel-2);color:var(--ink);font-weight:600;}
+
+  /* cards */
+  .card{
+    position:relative;
+    background:var(--panel);
+    border:1px solid var(--hair);
+    border-radius:12px;
+    padding:18px 18px 18px 16px;
+    margin-bottom:14px;
+    overflow:hidden;
+  }
+  .card::before{
+    content:"";position:absolute;top:0;bottom:0;right:0;width:4px;
+  }
+  .card.gold::before{background:var(--brass);}
+  .card.fx::before{background:var(--jade);}
+  .card-top{display:flex;align-items:baseline;justify-content:space-between;}
+  .card-label{font-size:13.5px;color:var(--muted);}
+  .card-sub{font-size:11.5px;color:var(--muted);opacity:.75;}
+  .price-row{
+    display:flex;align-items:flex-end;justify-content:space-between;
+    margin-top:10px;
+  }
+  .price{
+    font-size:30px;font-weight:900;font-variant-numeric:tabular-nums;
+    letter-spacing:.2px;
+  }
+  .price .unit{font-size:14px;font-weight:500;color:var(--muted);margin-right:6px;}
+  .delta{
+    font-size:13px;font-weight:600;display:flex;align-items:center;gap:3px;
+    font-variant-numeric:tabular-nums;
+  }
+  .delta.up{color:var(--up);}
+  .delta.down{color:var(--down);}
+  .delta.flat{color:var(--muted);}
+  .card-time{margin-top:10px;font-size:11px;color:var(--muted);}
+
+  .skeleton{
+    background:linear-gradient(90deg,var(--panel-2) 25%,var(--hair) 37%,var(--panel-2) 63%);
+    background-size:400% 100%;animation:shimmer 1.4s infinite;
+    border-radius:6px;height:30px;width:60%;
+  }
+  @keyframes shimmer{0%{background-position:100% 0}100%{background-position:0 0}}
+
+  .not-found{font-size:13px;color:var(--muted);margin-top:10px;line-height:1.8;}
+
+  .errbox{
+    background:var(--panel);border:1px solid var(--down);border-radius:12px;
+    padding:16px;font-size:13.5px;line-height:2;color:var(--ink);margin-bottom:16px;
+  }
+  .errbox b{color:var(--down);}
+  .errbox button{
+    margin-top:8px;background:var(--brass);color:#1a1200;border:none;
+    padding:8px 16px;border-radius:8px;font-family:inherit;font-weight:700;
+    font-size:13px;cursor:pointer;
+  }
+
+  footer{margin-top:6px;text-align:center;font-size:11px;color:var(--muted);line-height:2;}
+  footer a{color:var(--muted);}
+
+  details.debug{margin-top:18px;font-size:12px;color:var(--muted);}
+  details.debug summary{cursor:pointer;}
+  details.debug pre{
+    background:var(--panel);border:1px solid var(--hair);border-radius:8px;
+    padding:10px;max-height:220px;overflow:auto;white-space:pre-wrap;word-break:break-all;
+    font-size:11px;margin-top:8px;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="brand">
+      <div class="name">بازارنما</div>
+      <div class="clock" id="clock">—</div>
+    </div>
+    <div class="refresh-ring" id="refreshRing" title="بروزرسانی دستی">
+      <svg viewBox="0 0 46 46">
+        <circle class="track" cx="23" cy="23" r="19"></circle>
+        <circle class="bar" id="ringBar" cx="23" cy="23" r="19"></circle>
+      </svg>
+      <div class="icon" id="ringIcon">↻</div>
+    </div>
+  </header>
+
+  <div class="status" id="status"><span class="dot"></span><span id="statusText">در حال دریافت اطلاعات…</span></div>
+
+  <div class="unit-toggle" id="unitToggle">
+    <button data-unit="toman" class="active">تومان</button>
+    <button data-unit="rial">ریال</button>
+  </div>
+
+  <div id="cards">
+    <div class="card gold">
+      <div class="card-top"><span class="card-label">انس جهانی طلا</span><span class="card-sub">XAU/USD</span></div>
+      <div class="price-row"><div class="skeleton"></div></div>
+    </div>
+    <div class="card fx">
+      <div class="card-top"><span class="card-label">دلار آمریکا</span><span class="card-sub">بازار آزاد</span></div>
+      <div class="price-row"><div class="skeleton"></div></div>
+    </div>
+    <div class="card gold">
+      <div class="card-top"><span class="card-label">طلای ۱۸ عیار</span><span class="card-sub">هر گرم</span></div>
+      <div class="price-row"><div class="skeleton"></div></div>
+    </div>
+  </div>
+
+  <div id="errArea"></div>
+
+  <footer>
+    بروزرسانی خودکار هر ۶۰ ثانیه · منبع: brsapi.ir<br>
+    برای نصب روی صفحه اصلی، از منوی مرورگر «افزودن به صفحه اصلی» را بزنید
+  </footer>
+
+  <details class="debug">
+    <summary>نمایش داده خام (عیب‌یابی)</summary>
+    <pre id="rawDump">—</pre>
+  </details>
+
+</div>
+
+<script>
+(function(){
+  var SOURCE = 'https://brsapi.ir/FreeTsetmcBourseApi/Api_Free_Gold_Currency_v2.json';
+  var PROXY  = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(SOURCE);
+  var REFRESH_MS = 60000;
+  var unitMode = 'toman'; // toman | rial
+  var lastData = null;
+  var countdownTimer = null;
+  var secondsLeft = REFRESH_MS/1000;
+
+  var els = {
+    clock: document.getElementById('clock'),
+    status: document.getElementById('status'),
+    statusText: document.getElementById('statusText'),
+    cards: document.getElementById('cards'),
+    errArea: document.getElementById('errArea'),
+    rawDump: document.getElementById('rawDump'),
+    ring: document.getElementById('refreshRing'),
+    ringBar: document.getElementById('ringBar'),
+    ringIcon: document.getElementById('ringIcon'),
+    unitToggle: document.getElementById('unitToggle')
+  };
+
+  var RING_R = 19, RING_C = 2*Math.PI*RING_R;
+  els.ringBar.style.strokeDasharray = RING_C;
+
+  function tickClock(){
+    var d = new Date();
+    els.clock.textContent = d.toLocaleTimeString('fa-IR', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  }
+  setInterval(tickClock, 1000);
+  tickClock();
+
+  function fa(n){
+    if (n === null || n === undefined || isNaN(n)) return '—';
+    return Math.round(n).toLocaleString('fa-IR');
+  }
+
+  // ---------- flatten & search helpers ----------
+  function collectItems(node, out, seen){
+    seen = seen || new Set();
+    if (!node || typeof node !== 'object') return;
+    if (seen.has(node)) return;
+    seen.add(node);
+    if (Array.isArray(node)){
+      node.forEach(function(n){ collectItems(n, out, seen); });
+      return;
+    }
+    var hasPrice = ('price' in node) || ('p' in node) || ('value' in node) || ('last' in node) || ('close' in node);
+    var hasName = ('name' in node) || ('name_en' in node) || ('symbol' in node) || ('title' in node);
+    if (hasPrice && hasName) out.push(node);
+    Object.keys(node).forEach(function(k){
+      var v = node[k];
+      if (v && typeof v === 'object') collectItems(v, out, seen);
+    });
+  }
+
+  function getPrice(item){
+    var v = item.price ?? item.p ?? item.value ?? item.last ?? item.close;
+    if (typeof v === 'string') v = parseFloat(v.replace(/,/g,''));
+    return (typeof v === 'number' && !isNaN(v)) ? v : null;
+  }
+  function getChangePercent(item){
+    var v = item.change_percent ?? item.percent_change ?? item.drpercent ?? item.change_percentage ?? item.percent ?? null;
+    if (typeof v === 'string') v = parseFloat(v.replace(/,/g,''));
+    return (typeof v === 'number' && !isNaN(v)) ? v : null;
+  }
+  function getUnit(item){
+    return item.unit || item.unit_fa || item.currency || null;
+  }
+  function getNameBlob(item){
+    return [item.name, item.name_en, item.symbol, item.title].filter(Boolean).join(' ');
+  }
+  function findItem(items, opts){
+    return items.find(function(it){
+      var blob = getNameBlob(it);
+      if (opts.exclude && opts.exclude.some(function(x){ return blob.indexOf(x) > -1; })) return false;
+      if (opts.symbolExact && it.symbol && opts.symbolExact.indexOf(String(it.symbol).toUpperCase()) > -1) return true;
+      var lower = blob.toLowerCase();
+      if (opts.contains && opts.contains.some(function(k){ return blob.indexOf(k) > -1 || lower.indexOf(k.toLowerCase()) > -1; })) return true;
+      return false;
+    }) || null;
+  }
+
+  // ---------- rendering ----------
+  function renderCard(container, opts){
+    // opts: {item, label, sub, isRialSource, forceUnit}
+    var priceVal = opts.item ? getPrice(opts.item) : null;
+    var priceRowHtml;
+    if (!opts.item || priceVal === null){
+      priceRowHtml = '<div class="not-found">داده این مورد در پاسخ سرویس پیدا نشد. برای عیب‌یابی، بخش «نمایش داده خام» را باز کنید.</div>';
+    } else {
+      var displayVal = priceVal;
+      var unitLabel = opts.forceUnit || getUnit(opts.item) || '';
+      if (opts.isRialSource){
+        // API values assumed Rial by default; convert for Toman view
+        if (unitMode === 'toman') { displayVal = priceVal / 10; unitLabel = 'تومان'; }
+        else { unitLabel = 'ریال'; }
+      }
+      var chg = getChangePercent(opts.item);
+      var chgClass = 'flat', chgSign = '', chgArrow = '＝';
+      if (chg !== null && chg > 0){ chgClass='up'; chgSign='+'; chgArrow='▲'; }
+      else if (chg !== null && chg < 0){ chgClass='down'; chgArrow='▼'; }
+      priceRowHtml =
+        '<div class="price-row">' +
+          '<div class="price">' + fa(displayVal) + (unitLabel ? '<span class="unit">'+unitLabel+'</span>' : '') + '</div>' +
+          (chg !== null ? '<div class="delta '+chgClass+'">'+chgArrow+' '+chgSign+Math.abs(chg).toLocaleString('fa-IR')+'٪</div>' : '') +
+        '</div>';
+    }
+    container.querySelector('.price-row, .not-found') ? null : null;
+    var top = container.querySelector('.card-top').outerHTML;
+    container.innerHTML = top + priceRowHtml + '<div class="card-time">بروزرسانی: <span class="t">' + nowStr() + '</span></div>';
+  }
+
+  function nowStr(){
+    return new Date().toLocaleTimeString('fa-IR', {hour:'2-digit',minute:'2-digit'});
+  }
+
+  function setStatus(state, text){
+    els.status.className = 'status ' + state;
+    els.statusText.textContent = text;
+  }
+
+  function showError(msg){
+    els.errArea.innerHTML =
+      '<div class="errbox"><b>دریافت اطلاعات با خطا مواجه شد.</b><br>' + msg +
+      '<br><button id="retryBtn">تلاش دوباره</button></div>';
+    document.getElementById('retryBtn').addEventListener('click', function(){ loadData(true); });
+  }
+  function clearError(){ els.errArea.innerHTML = ''; }
+
+  function processAndRender(json){
+    lastData = json;
+    els.rawDump.textContent = JSON.stringify(json, null, 2).slice(0, 8000);
+
+    var items = [];
+    collectItems(json, items);
+
+    var usdItem = findItem(items, {
+      symbolExact: ['USD'],
+      contains: ['دلار آمریکا', 'دلار امریکا', 'usd'],
+      exclude: ['کانادا', 'استرالیا', 'سنگاپور', 'هنگ']
+    });
+    var ounceItem = findItem(items, {
+      contains: ['انس طلا', 'انس جهانی', 'ounce', 'xauusd', 'xau/usd']
+    });
+    var gold18Item = findItem(items, {
+      contains: ['طلای 18', 'طلای ۱۸', '18 عیار', '۱۸ عیار', '18k', '18 k', '18 carat', 'gold 18']
+    });
+
+    var cards = els.cards.children;
+    renderCard(cards[0], { item: ounceItem, isRialSource: false, forceUnit: ounceItem ? (getUnit(ounceItem) || '$') : null });
+    renderCard(cards[1], { item: usdItem, isRialSource: true });
+    renderCard(cards[2], { item: gold18Item, isRialSource: true });
+
+    var foundCount = [ounceItem, usdItem, gold18Item].filter(Boolean).length;
+    if (foundCount === 0){
+      setStatus('err', 'هیچ‌کدام از سه مورد در پاسخ سرویس شناسایی نشد');
+    } else if (foundCount < 3){
+      setStatus('err', 'برخی موارد پیدا نشدند (' + foundCount + ' از ۳) — داده خام را بررسی کنید');
+    } else {
+      setStatus('ok', 'بروز · ' + nowStr());
+    }
+    clearError();
+  }
+
+  function fetchJson(url){
+    return fetch(url, {cache:'no-store'}).then(function(res){
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      return res.json();
+    });
+  }
+
+  function loadData(isManual){
+    setStatus('', 'در حال دریافت اطلاعات…');
+    if (isManual){ els.ring.classList.add('spinning'); }
+    fetchJson(SOURCE)
+      .then(processAndRender)
+      .catch(function(){
+        return fetchJson(PROXY).then(processAndRender);
+      })
+      .catch(function(err){
+        setStatus('err', 'اتصال برقرار نشد');
+        showError('ممکن است اتصال اینترنت قطع باشد یا سرویس مبدأ موقتاً در دسترس نباشد. جزئیات فنی: ' + (err && err.message ? err.message : 'نامشخص'));
+      })
+      .finally(function(){
+        if (isManual){ setTimeout(function(){ els.ring.classList.remove('spinning'); }, 300); }
+        resetCountdown();
+      });
+  }
+
+  // ---------- countdown ring ----------
+  function resetCountdown(){
+    secondsLeft = REFRESH_MS/1000;
+    clearInterval(countdownTimer);
+    countdownTimer = setInterval(function(){
+      secondsLeft--;
+      var frac = Math.max(0, secondsLeft) / (REFRESH_MS/1000);
+      els.ringBar.style.strokeDashoffset = RING_C * (1 - frac);
+      if (secondsLeft <= 0){
+        loadData(false);
+      }
+    }, 1000);
+  }
+
+  els.ring.addEventListener('click', function(){ loadData(true); });
+
+  els.unitToggle.addEventListener('click', function(e){
+    var btn = e.target.closest('button');
+    if (!btn) return;
+    unitMode = btn.getAttribute('data-unit');
+    Array.from(els.unitToggle.children).forEach(function(b){ b.classList.toggle('active', b===btn); });
+    if (lastData) processAndRender(lastData);
+  });
+
+  loadData(false);
+
+  if ('serviceWorker' in navigator){
+    window.addEventListener('load', function(){
+      navigator.serviceWorker.register('sw.js').catch(function(){ /* ignore in sandboxed preview */ });
+    });
+  }
+})();
+</script>
+</body>
+</html>
