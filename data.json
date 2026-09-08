@@ -1,8 +1,19 @@
 {
-  "ok": false,
-  "generated_at": null,
-  "ounce": null,
-  "usd_rial": null,
-  "gold18_rial": null,
-  "note": "این فایل هنوز توسط GitHub Actions بروزرسانی نشده — workflow را یک‌بار دستی اجرا کنید."
+  "ok": true,
+  "generated_at": "2026-09-08T08:54:17.268136+00:00",
+  "ounce": {
+    "price": 4392.73,
+    "change": 12.25,
+    "direction": "low"
+  },
+  "usd_rial": {
+    "price": 2244600.0,
+    "change": 23600.0,
+    "direction": "high"
+  },
+  "gold18_rial": {
+    "price": 233612000.0,
+    "change": 2990000.0,
+    "direction": "high"
+  }
 }
