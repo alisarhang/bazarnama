@@ -192,7 +192,7 @@
   <div id="errArea"></div>
 
   <footer>
-    بروزرسانی خودکار هر ۶۰ ثانیه · منبع: brsapi.ir<br>
+    بروزرسانی خودکار هر ۶۰ ثانیه · منبع: tgju.org<br>
     برای نصب روی صفحه اصلی، از منوی مرورگر «افزودن به صفحه اصلی» را بزنید
   </footer>
 
@@ -205,7 +205,18 @@
 
 <script>
 (function(){
-  var SOURCE = 'https://brsapi.ir/FreeTsetmcBourseApi/Api_Free_Gold_Currency_v2.json';
+  // Source: api.tgju.org's public market endpoint (the same one tgju's own
+  // official Android/iOS apps use). Reverse-engineered field mapping:
+  //   GET https://api.tgju.org/v1/market/tmp?keys=price_dollar_rl,geram18,ons
+  //   -> { response: { indicators: [ {name, p, d, dt, t...}, ... ] } }
+  //   name: "price_dollar_rl" -> USD, price is in RIAL
+  //         "geram18"         -> 18k gold per gram, price is in RIAL
+  //         "ons"             -> global gold ounce, price is already in USD
+  //   p  = price (string with commas)
+  //   d  = change amount (string with commas, always positive)
+  //   dt = "high" | "low"  (direction of the change)
+  var KEYS = ['price_dollar_rl', 'geram18', 'ons'];
+  var SOURCE = 'https://api.tgju.org/v1/market/tmp?keys=' + KEYS.join(',');
   var PROXY  = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(SOURCE);
   var REFRESH_MS = 60000;
   var unitMode = 'toman'; // toman | rial
@@ -222,7 +233,6 @@
     rawDump: document.getElementById('rawDump'),
     ring: document.getElementById('refreshRing'),
     ringBar: document.getElementById('ringBar'),
-    ringIcon: document.getElementById('ringIcon'),
     unitToggle: document.getElementById('unitToggle')
   };
 
@@ -240,92 +250,19 @@
     if (n === null || n === undefined || isNaN(n)) return '—';
     return Math.round(n).toLocaleString('fa-IR');
   }
-
-  // ---------- flatten & search helpers ----------
-  function collectItems(node, out, seen){
-    seen = seen || new Set();
-    if (!node || typeof node !== 'object') return;
-    if (seen.has(node)) return;
-    seen.add(node);
-    if (Array.isArray(node)){
-      node.forEach(function(n){ collectItems(n, out, seen); });
-      return;
-    }
-    var hasPrice = ('price' in node) || ('p' in node) || ('value' in node) || ('last' in node) || ('close' in node);
-    var hasName = ('name' in node) || ('name_en' in node) || ('symbol' in node) || ('title' in node);
-    if (hasPrice && hasName) out.push(node);
-    Object.keys(node).forEach(function(k){
-      var v = node[k];
-      if (v && typeof v === 'object') collectItems(v, out, seen);
-    });
-  }
-
-  function getPrice(item){
-    var v = item.price ?? item.p ?? item.value ?? item.last ?? item.close;
-    if (typeof v === 'string') v = parseFloat(v.replace(/,/g,''));
-    return (typeof v === 'number' && !isNaN(v)) ? v : null;
-  }
-  function getChangePercent(item){
-    var v = item.change_percent ?? item.percent_change ?? item.drpercent ?? item.change_percentage ?? item.percent ?? null;
-    if (typeof v === 'string') v = parseFloat(v.replace(/,/g,''));
-    return (typeof v === 'number' && !isNaN(v)) ? v : null;
-  }
-  function getUnit(item){
-    return item.unit || item.unit_fa || item.currency || null;
-  }
-  function getNameBlob(item){
-    return [item.name, item.name_en, item.symbol, item.title].filter(Boolean).join(' ');
-  }
-  function findItem(items, opts){
-    return items.find(function(it){
-      var blob = getNameBlob(it);
-      if (opts.exclude && opts.exclude.some(function(x){ return blob.indexOf(x) > -1; })) return false;
-      if (opts.symbolExact && it.symbol && opts.symbolExact.indexOf(String(it.symbol).toUpperCase()) > -1) return true;
-      var lower = blob.toLowerCase();
-      if (opts.contains && opts.contains.some(function(k){ return blob.indexOf(k) > -1 || lower.indexOf(k.toLowerCase()) > -1; })) return true;
-      return false;
-    }) || null;
-  }
-
-  // ---------- rendering ----------
-  function renderCard(container, opts){
-    // opts: {item, label, sub, isRialSource, forceUnit}
-    var priceVal = opts.item ? getPrice(opts.item) : null;
-    var priceRowHtml;
-    if (!opts.item || priceVal === null){
-      priceRowHtml = '<div class="not-found">داده این مورد در پاسخ سرویس پیدا نشد. برای عیب‌یابی، بخش «نمایش داده خام» را باز کنید.</div>';
-    } else {
-      var displayVal = priceVal;
-      var unitLabel = opts.forceUnit || getUnit(opts.item) || '';
-      if (opts.isRialSource){
-        // API values assumed Rial by default; convert for Toman view
-        if (unitMode === 'toman') { displayVal = priceVal / 10; unitLabel = 'تومان'; }
-        else { unitLabel = 'ریال'; }
-      }
-      var chg = getChangePercent(opts.item);
-      var chgClass = 'flat', chgSign = '', chgArrow = '＝';
-      if (chg !== null && chg > 0){ chgClass='up'; chgSign='+'; chgArrow='▲'; }
-      else if (chg !== null && chg < 0){ chgClass='down'; chgArrow='▼'; }
-      priceRowHtml =
-        '<div class="price-row">' +
-          '<div class="price">' + fa(displayVal) + (unitLabel ? '<span class="unit">'+unitLabel+'</span>' : '') + '</div>' +
-          (chg !== null ? '<div class="delta '+chgClass+'">'+chgArrow+' '+chgSign+Math.abs(chg).toLocaleString('fa-IR')+'٪</div>' : '') +
-        '</div>';
-    }
-    container.querySelector('.price-row, .not-found') ? null : null;
-    var top = container.querySelector('.card-top').outerHTML;
-    container.innerHTML = top + priceRowHtml + '<div class="card-time">بروزرسانی: <span class="t">' + nowStr() + '</span></div>';
+  function parseNum(v){
+    if (typeof v === 'number') return v;
+    if (typeof v === 'string') { var n = parseFloat(v.replace(/,/g,'')); return isNaN(n) ? null : n; }
+    return null;
   }
 
   function nowStr(){
     return new Date().toLocaleTimeString('fa-IR', {hour:'2-digit',minute:'2-digit'});
   }
-
   function setStatus(state, text){
     els.status.className = 'status ' + state;
     els.statusText.textContent = text;
   }
-
   function showError(msg){
     els.errArea.innerHTML =
       '<div class="errbox"><b>دریافت اطلاعات با خطا مواجه شد.</b><br>' + msg +
@@ -334,27 +271,62 @@
   }
   function clearError(){ els.errArea.innerHTML = ''; }
 
+  // ---------- render a single card ----------
+  function renderCard(container, opts){
+    // opts: {item, isRialSource, forceUnit}
+    var top = container.querySelector('.card-top').outerHTML;
+    if (!opts.item){
+      container.innerHTML = top +
+        '<div class="not-found">داده این مورد در پاسخ سرویس پیدا نشد. برای عیب‌یابی «نمایش داده خام» را باز کنید.</div>';
+      return;
+    }
+    var priceVal = parseNum(opts.item.p);
+    var changeVal = parseNum(opts.item.d);
+    var dir = opts.item.dt; // 'high' | 'low'
+
+    var unitLabel = opts.forceUnit || '';
+    var displayVal = priceVal;
+    var displayChange = changeVal;
+    if (opts.isRialSource){
+      if (unitMode === 'toman'){
+        if (displayVal !== null) displayVal = displayVal / 10;
+        if (displayChange !== null) displayChange = displayChange / 10;
+        unitLabel = 'تومان';
+      } else {
+        unitLabel = 'ریال';
+      }
+    }
+
+    var chgClass = 'flat', chgSign = '', chgArrow = '＝';
+    if (displayChange !== null && displayChange !== 0){
+      if (dir === 'low'){ chgClass = 'down'; chgArrow = '▼'; }
+      else { chgClass = 'up'; chgSign = '+'; chgArrow = '▲'; }
+    }
+
+    var priceRowHtml =
+      '<div class="price-row">' +
+        '<div class="price">' + fa(displayVal) + (unitLabel ? '<span class="unit">'+unitLabel+'</span>' : '') + '</div>' +
+        (displayChange !== null ? '<div class="delta '+chgClass+'">'+chgArrow+' '+chgSign+fa(displayChange)+'</div>' : '') +
+      '</div>';
+
+    container.innerHTML = top + priceRowHtml +
+      '<div class="card-time">بروزرسانی: <span class="t">' + nowStr() + '</span></div>';
+  }
+
   function processAndRender(json){
     lastData = json;
     els.rawDump.textContent = JSON.stringify(json, null, 2).slice(0, 8000);
 
-    var items = [];
-    collectItems(json, items);
+    var indicators = (json && json.response && json.response.indicators) || [];
+    var byName = {};
+    indicators.forEach(function(ind){ if (ind && ind.name) byName[ind.name] = ind; });
 
-    var usdItem = findItem(items, {
-      symbolExact: ['USD'],
-      contains: ['دلار آمریکا', 'دلار امریکا', 'usd'],
-      exclude: ['کانادا', 'استرالیا', 'سنگاپور', 'هنگ']
-    });
-    var ounceItem = findItem(items, {
-      contains: ['انس طلا', 'انس جهانی', 'ounce', 'xauusd', 'xau/usd']
-    });
-    var gold18Item = findItem(items, {
-      contains: ['طلای 18', 'طلای ۱۸', '18 عیار', '۱۸ عیار', '18k', '18 k', '18 carat', 'gold 18']
-    });
+    var ounceItem = byName['ons'] || null;
+    var usdItem = byName['price_dollar_rl'] || null;
+    var gold18Item = byName['geram18'] || null;
 
     var cards = els.cards.children;
-    renderCard(cards[0], { item: ounceItem, isRialSource: false, forceUnit: ounceItem ? (getUnit(ounceItem) || '$') : null });
+    renderCard(cards[0], { item: ounceItem, isRialSource: false, forceUnit: '$' });
     renderCard(cards[1], { item: usdItem, isRialSource: true });
     renderCard(cards[2], { item: gold18Item, isRialSource: true });
 
