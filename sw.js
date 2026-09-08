@@ -18,7 +18,7 @@ self.addEventListener('activate', (e) => {
 // Network-first for the live price data source, cache-first for the app shell.
 self.addEventListener('fetch', (e) => {
   const url = e.request.url;
-  const isDataCall = url.includes('brsapi.ir') || url.includes('allorigins.win');
+  const isDataCall = url.includes('tgju.org') || url.includes('allorigins.win');
   if (isDataCall) {
     e.respondWith(fetch(e.request).catch(() => new Response('{}', { headers: { 'Content-Type': 'application/json' } })));
     return;
