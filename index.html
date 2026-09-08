@@ -192,7 +192,7 @@
   <div id="errArea"></div>
 
   <footer>
-    بروزرسانی خودکار هر ۶۰ ثانیه · منبع: tgju.org<br>
+    داده هر چند دقیقه یک‌بار سمت GitHub بروز می‌شود · منبع: tgju.org<br>
     برای نصب روی صفحه اصلی، از منوی مرورگر «افزودن به صفحه اصلی» را بزنید
   </footer>
 
@@ -205,24 +205,17 @@
 
 <script>
 (function(){
-  // Source: api.tgju.org's public market endpoint (the same one tgju's own
-  // official Android/iOS apps use). Reverse-engineered field mapping:
-  //   GET https://api.tgju.org/v1/market/tmp?keys=price_dollar_rl,geram18,ons
-  //   -> { response: { indicators: [ {name, p, d, dt, t...}, ... ] } }
-  //   name: "price_dollar_rl" -> USD, price is in RIAL
-  //         "geram18"         -> 18k gold per gram, price is in RIAL
-  //         "ons"             -> global gold ounce, price is already in USD
-  //   p  = price (string with commas)
-  //   d  = change amount (string with commas, always positive)
-  //   dt = "high" | "low"  (direction of the change)
-  var KEYS = ['price_dollar_rl', 'geram18', 'ons'];
-  var SOURCE = 'https://api.tgju.org/v1/market/tmp?keys=' + KEYS.join(',');
-  var PROXY  = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(SOURCE);
-  var REFRESH_MS = 60000;
+  // Data is no longer fetched from tgju.org in the browser. Instead, a
+  // GitHub Actions workflow (server-side, on GitHub's own network) fetches
+  // it every ~5 minutes and commits it as data.json next to this file.
+  // The browser only ever talks to GitHub Pages -- this avoids CORS issues
+  // and works even if the visitor's own network can't reach tgju.org.
+  var SOURCE = './data.json';
+  var POLL_MS = 60000; // how often the page checks data.json for a change
   var unitMode = 'toman'; // toman | rial
   var lastData = null;
   var countdownTimer = null;
-  var secondsLeft = REFRESH_MS/1000;
+  var secondsLeft = POLL_MS/1000;
 
   var els = {
     clock: document.getElementById('clock'),
@@ -250,12 +243,11 @@
     if (n === null || n === undefined || isNaN(n)) return '—';
     return Math.round(n).toLocaleString('fa-IR');
   }
-  function parseNum(v){
-    if (typeof v === 'number') return v;
-    if (typeof v === 'string') { var n = parseFloat(v.replace(/,/g,'')); return isNaN(n) ? null : n; }
-    return null;
+  function timeOnly(iso){
+    if (!iso) return '—';
+    try { return new Date(iso).toLocaleTimeString('fa-IR', {hour:'2-digit',minute:'2-digit'}); }
+    catch(e){ return '—'; }
   }
-
   function nowStr(){
     return new Date().toLocaleTimeString('fa-IR', {hour:'2-digit',minute:'2-digit'});
   }
@@ -265,7 +257,7 @@
   }
   function showError(msg){
     els.errArea.innerHTML =
-      '<div class="errbox"><b>دریافت اطلاعات با خطا مواجه شد.</b><br>' + msg +
+      '<div class="errbox"><b>خواندن data.json با خطا مواجه شد.</b><br>' + msg +
       '<br><button id="retryBtn">تلاش دوباره</button></div>';
     document.getElementById('retryBtn').addEventListener('click', function(){ loadData(true); });
   }
@@ -273,24 +265,24 @@
 
   // ---------- render a single card ----------
   function renderCard(container, opts){
-    // opts: {item, isRialSource, forceUnit}
+    // opts: {item: {price, change, direction}, isRialSource, forceUnit}
     var top = container.querySelector('.card-top').outerHTML;
-    if (!opts.item){
+    if (!opts.item || opts.item.price === null || opts.item.price === undefined){
       container.innerHTML = top +
-        '<div class="not-found">داده این مورد در پاسخ سرویس پیدا نشد. برای عیب‌یابی «نمایش داده خام» را باز کنید.</div>';
+        '<div class="not-found">داده این مورد هنوز در data.json موجود نیست.</div>';
       return;
     }
-    var priceVal = parseNum(opts.item.p);
-    var changeVal = parseNum(opts.item.d);
-    var dir = opts.item.dt; // 'high' | 'low'
+    var priceVal = opts.item.price;
+    var changeVal = opts.item.change;
+    var dir = opts.item.direction; // 'high' | 'low'
 
     var unitLabel = opts.forceUnit || '';
     var displayVal = priceVal;
     var displayChange = changeVal;
     if (opts.isRialSource){
       if (unitMode === 'toman'){
-        if (displayVal !== null) displayVal = displayVal / 10;
-        if (displayChange !== null) displayChange = displayChange / 10;
+        if (displayVal !== null && displayVal !== undefined) displayVal = displayVal / 10;
+        if (displayChange !== null && displayChange !== undefined) displayChange = displayChange / 10;
         unitLabel = 'تومان';
       } else {
         unitLabel = 'ریال';
@@ -298,7 +290,7 @@
     }
 
     var chgClass = 'flat', chgSign = '', chgArrow = '＝';
-    if (displayChange !== null && displayChange !== 0){
+    if (displayChange !== null && displayChange !== undefined && displayChange !== 0){
       if (dir === 'low'){ chgClass = 'down'; chgArrow = '▼'; }
       else { chgClass = 'up'; chgSign = '+'; chgArrow = '▲'; }
     }
@@ -306,37 +298,31 @@
     var priceRowHtml =
       '<div class="price-row">' +
         '<div class="price">' + fa(displayVal) + (unitLabel ? '<span class="unit">'+unitLabel+'</span>' : '') + '</div>' +
-        (displayChange !== null ? '<div class="delta '+chgClass+'">'+chgArrow+' '+chgSign+fa(displayChange)+'</div>' : '') +
+        (displayChange !== null && displayChange !== undefined ? '<div class="delta '+chgClass+'">'+chgArrow+' '+chgSign+fa(displayChange)+'</div>' : '') +
       '</div>';
 
     container.innerHTML = top + priceRowHtml +
-      '<div class="card-time">بروزرسانی: <span class="t">' + nowStr() + '</span></div>';
+      '<div class="card-time">آخرین بروزرسانی سرور: <span class="t">' + timeOnly(lastData && lastData.generated_at) + '</span></div>';
   }
 
   function processAndRender(json){
     lastData = json;
     els.rawDump.textContent = JSON.stringify(json, null, 2).slice(0, 8000);
 
-    var indicators = (json && json.response && json.response.indicators) || [];
-    var byName = {};
-    indicators.forEach(function(ind){ if (ind && ind.name) byName[ind.name] = ind; });
-
-    var ounceItem = byName['ons'] || null;
-    var usdItem = byName['price_dollar_rl'] || null;
-    var gold18Item = byName['geram18'] || null;
-
     var cards = els.cards.children;
-    renderCard(cards[0], { item: ounceItem, isRialSource: false, forceUnit: '$' });
-    renderCard(cards[1], { item: usdItem, isRialSource: true });
-    renderCard(cards[2], { item: gold18Item, isRialSource: true });
+    renderCard(cards[0], { item: json.ounce, isRialSource: false, forceUnit: '$' });
+    renderCard(cards[1], { item: json.usd_rial, isRialSource: true });
+    renderCard(cards[2], { item: json.gold18_rial, isRialSource: true });
 
-    var foundCount = [ounceItem, usdItem, gold18Item].filter(Boolean).length;
-    if (foundCount === 0){
-      setStatus('err', 'هیچ‌کدام از سه مورد در پاسخ سرویس شناسایی نشد');
-    } else if (foundCount < 3){
-      setStatus('err', 'برخی موارد پیدا نشدند (' + foundCount + ' از ۳) — داده خام را بررسی کنید');
+    if (json.ok === false && !json.generated_at){
+      setStatus('err', 'هنوز اولین بروزرسانی روی GitHub انجام نشده');
+      showError('workflow را از تب Actions مخزن، به‌صورت دستی (Run workflow) یک‌بار اجرا کنید تا data.json ساخته شود.');
+      return;
+    }
+    if (json.ok === false){
+      setStatus('err', 'آخرین تلاش سرور ناموفق بود — نمایش آخرین داده معتبر (' + timeOnly(json.generated_at) + ')');
     } else {
-      setStatus('ok', 'بروز · ' + nowStr());
+      setStatus('ok', 'بروز · داده سرور: ' + timeOnly(json.generated_at) + ' · بررسی شد: ' + nowStr());
     }
     clearError();
   }
@@ -349,16 +335,12 @@
   }
 
   function loadData(isManual){
-    setStatus('', 'در حال دریافت اطلاعات…');
-    if (isManual){ els.ring.classList.add('spinning'); }
+    if (isManual){ els.ring.classList.add('spinning'); setStatus('', 'در حال بررسی data.json…'); }
     fetchJson(SOURCE)
       .then(processAndRender)
-      .catch(function(){
-        return fetchJson(PROXY).then(processAndRender);
-      })
       .catch(function(err){
-        setStatus('err', 'اتصال برقرار نشد');
-        showError('ممکن است اتصال اینترنت قطع باشد یا سرویس مبدأ موقتاً در دسترس نباشد. جزئیات فنی: ' + (err && err.message ? err.message : 'نامشخص'));
+        setStatus('err', 'data.json یافت نشد یا خطا داشت');
+        showError('مطمئن شوید data.json کنار index.html در همان مخزن آپلود شده. جزئیات فنی: ' + (err && err.message ? err.message : 'نامشخص'));
       })
       .finally(function(){
         if (isManual){ setTimeout(function(){ els.ring.classList.remove('spinning'); }, 300); }
@@ -366,13 +348,13 @@
       });
   }
 
-  // ---------- countdown ring ----------
+  // ---------- countdown ring (how often we re-check data.json) ----------
   function resetCountdown(){
-    secondsLeft = REFRESH_MS/1000;
+    secondsLeft = POLL_MS/1000;
     clearInterval(countdownTimer);
     countdownTimer = setInterval(function(){
       secondsLeft--;
-      var frac = Math.max(0, secondsLeft) / (REFRESH_MS/1000);
+      var frac = Math.max(0, secondsLeft) / (POLL_MS/1000);
       els.ringBar.style.strokeDashoffset = RING_C * (1 - frac);
       if (secondsLeft <= 0){
         loadData(false);
