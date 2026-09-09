@@ -1,5 +1,7 @@
 {
-  "ok": true,
+  "ok": false,
+  "error": "The read operation timed out",
+  "last_attempt_at": "2026-09-09T09:39:59.000965+00:00",
   "generated_at": "2026-09-09T05:05:42.510211+00:00",
   "ounce": {
     "price": 4381.89,
