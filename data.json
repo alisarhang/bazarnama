@@ -1,12 +1,10 @@
 {
-  "ok": false,
-  "error": "HTTP Error 502: Bad Gateway",
-  "last_attempt_at": "2026-09-11T09:04:47.221546+00:00",
-  "generated_at": "2026-09-11T00:02:26.483116+00:00",
+  "ok": true,
+  "generated_at": "2026-09-11T13:30:27.229617+00:00",
   "ounce": {
-    "price": 4316.17,
-    "change": 2.41,
-    "direction": "low"
+    "price": 4384.86,
+    "change": 66.28,
+    "direction": "high"
   },
   "usd_rial": {
     "price": 2359750.0,
