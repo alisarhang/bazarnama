@@ -1,7 +1,7 @@
 {
   "ok": false,
-  "error": "HTTP Error 500: Internal Server Error",
-  "last_attempt_at": "2026-09-11T04:29:48.447986+00:00",
+  "error": "HTTP Error 502: Bad Gateway",
+  "last_attempt_at": "2026-09-11T09:04:47.221546+00:00",
   "generated_at": "2026-09-11T00:02:26.483116+00:00",
   "ounce": {
     "price": 4316.17,
