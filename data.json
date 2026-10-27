@@ -1,10 +1,10 @@
 {
   "ok": true,
-  "generated_at": "2026-10-27T02:24:52.746195+00:00",
+  "generated_at": "2026-10-27T08:12:45.660014+00:00",
   "ounce": {
-    "price": 4015.4,
-    "change": 2.12,
-    "direction": "high"
+    "price": 4006.53,
+    "change": 6.75,
+    "direction": "low"
   },
   "usd_rial": {
     "price": 2715000.0,
