@@ -1,9 +1,9 @@
 {
   "ok": true,
-  "generated_at": "2026-11-04T09:03:58.926882+00:00",
+  "generated_at": "2026-11-04T17:08:54.915822+00:00",
   "ounce": {
-    "price": 4034.14,
-    "change": 111.93,
+    "price": 4063.83,
+    "change": 141.62,
     "direction": "high"
   },
   "usd_rial": {
@@ -12,8 +12,8 @@
     "direction": "low"
   },
   "gold18_rial": {
-    "price": 258327000.0,
-    "change": 3232000.0,
+    "price": 260621000.0,
+    "change": 5526000.0,
     "direction": "high"
   }
 }
